@@ -28,8 +28,28 @@ class RailForgeFeatureService:
     def coordinate_route(self, operation_id, requests, sections, existing, headway, at):
         def action():
             plan = build(requests, sections, existing, headway)
+            single = {sid for sid, section in sections.items() if section.single_track}
+            from railforge.timetable.meets import Traversal, conflicts as meet_conflicts
+            traversals = [
+                Traversal(s.train, s.section, s.start, s.end, s.direction)
+                for slots in plan.values() for s in slots
+                if s.section in single
+            ]
+            meets = meet_conflicts(traversals)
+            if meets:
+                from railforge.planning.train_path_engine import MeetConflictError
+                section_id, a, b = meets[0]
+                raise MeetConflictError(section_id, (a, b), 0)
             return {"plan": plan, "load": section_load(plan), "delay": train_delay(plan, requests)}
         return self.control.run(operation_id, "feature.route.coordinated", operation_id, at, action)
+
+    def publish_single_line(self, operation_id, requests, sections, existing, headway, at,
+                            feed_events=(), expected_version=None):
+        """Joint gate: path plan + direction + event cursor + versioned commit."""
+        return self.control.publish_single_line_plan(
+            operation_id, requests, sections, existing, headway, at,
+            feed_events=feed_events, expected_version=expected_version,
+        )
 
     def plan_loco_cycle(self, operation_id, legs, units, turn_minutes, at):
         return self.control.run(operation_id, "feature.loco.cycle", operation_id, at,

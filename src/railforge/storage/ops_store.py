@@ -28,6 +28,14 @@ class VersionedStore:
             self._rows[key] = VersionedValue(version, value)
             return version
 
+    def restore(self, key: str, previous: VersionedValue | None) -> None:
+        """Undo a write inside a rolled-back atomic commit."""
+        with self._lock:
+            if previous is None:
+                self._rows.pop(key, None)
+            else:
+                self._rows[key] = previous
+
     def read(self, key: str) -> VersionedValue | None:
         with self._lock:
             return self._rows.get(key)

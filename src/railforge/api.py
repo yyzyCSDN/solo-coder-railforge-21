@@ -38,3 +38,10 @@ class RailForgeService:
     def workflow(self):
         return self.control
 
+    def publish_single_line(self, operation_id, requests, sections, existing, headway, at,
+                            feed_events=(), expected_version=None):
+        return self.features.publish_single_line(
+            operation_id, requests, sections, existing, headway, at,
+            feed_events=feed_events, expected_version=expected_version,
+        )
+
