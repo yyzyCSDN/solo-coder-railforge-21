@@ -26,19 +26,3 @@ def conflicts(rows: list[Traversal]) -> list[tuple[str, str, str]]:
                 if a.direction != b.direction:
                     out.append((section, a.train, b.train))
     return out
-
-
-_railforge_original_meet_conflicts = conflicts
-def conflicts(rows):
-    from datetime import timezone
-    groups = {}
-    for r in rows:
-        groups.setdefault(r.section, []).append(r)
-    out = []
-    for section, xs in groups.items():
-        xs = sorted(xs, key=lambda r: r.start.astimezone(timezone.utc))
-        for i, a in enumerate(xs):
-            for b in xs[i + 1:]:
-                if b.start < a.end:
-                    out.append((section, a.train, b.train))
-    return out

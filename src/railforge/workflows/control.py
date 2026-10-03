@@ -30,7 +30,6 @@ from railforge.yard.switching import lock_route
 from railforge.crew.duty import legal as duty_legal
 
 T = TypeVar("T")
-BROKEN_CONTROL_TOPICS: set[str] = set()
 
 
 def _safe(value: Any) -> Any:
@@ -85,7 +84,7 @@ class RailForgeWorkflowControl:
         payload = {
             "operation_id": operation_id,
             "status": "committed",
-            "control_path": "legacy" if topic in BROKEN_CONTROL_TOPICS else "atomic",
+            "control_path": "atomic",
             "version": version,
             "result": _safe(result),
             **dict(evidence or {}),
@@ -124,8 +123,13 @@ class RailForgeWorkflowControl:
         return self._commit(operation_id, "crew.duty.assigned", subject, at, action)
 
     def book_meet(self, operation_id, rows, subject, at):
-        return self._commit(operation_id, "timetable.meet.booked", subject, at,
-                            lambda: meet_conflicts(rows))
+        def action():
+            hits = meet_conflicts(rows)
+            if hits:
+                pairs = ",".join(f"{section}:{a}/{b}" for section, a, b in hits)
+                raise ValueError("meet conflict: " + pairs)
+            return hits
+        return self._commit(operation_id, "timetable.meet.booked", subject, at, action)
 
     def classify_yard(self, operation_id, cuts, tracks, occupied, subject, at):
         return self._commit(operation_id, "yard.classified", subject, at,
@@ -187,6 +191,3 @@ class RailForgeWorkflowControl:
     def fuse_eta(self, operation_id, rows, max_lateness, subject, at):
         return self._commit(operation_id, "eta.fused", subject, at,
                             lambda: fused_delay(rows, max_lateness))
-
-
-BROKEN_CONTROL_TOPICS.add('timetable.meet.booked')

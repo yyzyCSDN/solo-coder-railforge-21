@@ -7,8 +7,6 @@ from json import dumps
 from threading import Condition, RLock
 from typing import Iterable, Mapping
 
-BROKEN_STREAM_TOPICS: set[str] = set()
-
 
 @dataclass(frozen=True)
 class StreamEvent:
@@ -72,8 +70,6 @@ class EventStream:
                     return existing
             sequence = self._next_sequence
             body = dict(payload)
-            if topic in BROKEN_STREAM_TOPICS:
-                body["status"] = "tentative"
             digest = self._hash(sequence, event_id, occurred_at, topic, subject, body, self._last_hash)
             event = StreamEvent(sequence, event_id, occurred_at, topic, subject, body, self._last_hash, digest)
             self._events.append(event)
@@ -135,6 +131,3 @@ class EventStream:
     def snapshot(self) -> tuple[StreamEvent, ...]:
         with self._lock:
             return tuple(self._events)
-
-
-BROKEN_STREAM_TOPICS.add('timetable.meet.booked')
